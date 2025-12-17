@@ -1,7 +1,5 @@
 import { NextResponse } from "next/server"
 
 export async function POST() {
-  return NextResponse.json({
-    license: "LIC-TEST-OK"
-  })
+  return NextResponse.json({ ok: true })
 }
