@@ -1,7 +1,6 @@
-// app/lib/licenses.ts
-export type LicenseData = {
-  email?: string
-  device?: string
+type LicenseData = {
+  email: string
+  device: string | null
 }
 
 export const LICENSES = new Map<string, LicenseData>()
