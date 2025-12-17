@@ -13,7 +13,7 @@ export async function POST(req: Request) {
     )
   }
 
-  // 🔒 lock 1 device
+  // lock 1 device
   if (!data.device) {
     data.device = device
   } else if (data.device !== device) {
