@@ -1,7 +1,7 @@
-export default function RootLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <html>
-      <body>{children}</body>
-    </html>
-  )
+import { NextResponse } from "next/server"
+
+export async function POST() {
+  return NextResponse.json({
+    ok: true
+  })
 }
