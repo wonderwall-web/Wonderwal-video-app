@@ -4,14 +4,20 @@ import { useState } from "react"
 
 export default function AdminPage() {
   const [pass, setPass] = useState("")
+  const [error, setError] = useState("")
   const [ok, setOk] = useState(false)
 
-  const login = () => {
-    if (pass === "rahasia_admin_123") {
-      setOk(true)
-    } else {
-      alert("SALAH")
-    }
+  const login = async () => {
+    setError("")
+    const res = await fetch("/api/admin/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password: pass })
+    })
+
+    const data = await res.json()
+    if (data.ok) setOk(true)
+    else setError("PASSWORD SALAH")
   }
 
   if (!ok) {
@@ -20,18 +26,16 @@ export default function AdminPage() {
         <div className="flex flex-col gap-3">
           <h1 className="text-xl font-bold">ADMIN LOGIN</h1>
           <input
+            type="password"
             className="border p-2"
             placeholder="Admin Password"
-            type="password"
             value={pass}
             onChange={(e) => setPass(e.target.value)}
           />
-          <button
-            onClick={login}
-            className="bg-black text-white p-2"
-          >
+          <button className="bg-black text-white p-2" onClick={login}>
             LOGIN
           </button>
+          {error && <p className="text-red-500">{error}</p>}
         </div>
       </main>
     )
@@ -39,9 +43,9 @@ export default function AdminPage() {
 
   return (
     <main className="min-h-screen p-10">
-      <h1 className="text-2xl font-bold mb-4">ADMIN PANEL</h1>
-      <p>Webhook Lynk AKTIF ✅</p>
-      <p>Auto-generate license AKTIF ✅</p>
+      <h1 className="text-2xl font-bold">ADMIN PANEL</h1>
+      <p>ADMIN LOCK AKTIF ✅</p>
+      <p>AUTO-JUAL AKTIF ✅</p>
     </main>
   )
 }
