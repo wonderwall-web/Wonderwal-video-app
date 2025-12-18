@@ -3,56 +3,45 @@
 import { useState } from "react"
 
 export default function AdminPage() {
-  const [password, setPassword] = useState("")
+  const [pass, setPass] = useState("")
   const [ok, setOk] = useState(false)
-  const [license, setLicense] = useState("")
-  const [loading, setLoading] = useState(false)
 
   const login = () => {
-    if (password === process.env.NEXT_PUBLIC_ADMIN_PASSWORD) {
+    if (pass === "rahasia_admin_123") {
       setOk(true)
     } else {
-      alert("PASSWORD SALAH")
+      alert("SALAH")
     }
-  }
-
-  const generate = async () => {
-    setLoading(true)
-    const res = await fetch("/api/license/create", { method: "POST" })
-    const data = await res.json()
-    setLicense(data.license)
-    setLoading(false)
   }
 
   if (!ok) {
     return (
-      <main style={{ padding: 40 }}>
-        <h1>ADMIN LOGIN</h1>
-        <input
-          type="password"
-          placeholder="Admin Password"
-          value={password}
-          onChange={e => setPassword(e.target.value)}
-        />
-        <br /><br />
-        <button onClick={login}>LOGIN</button>
+      <main className="min-h-screen flex items-center justify-center">
+        <div className="flex flex-col gap-3">
+          <h1 className="text-xl font-bold">ADMIN LOGIN</h1>
+          <input
+            className="border p-2"
+            placeholder="Admin Password"
+            type="password"
+            value={pass}
+            onChange={(e) => setPass(e.target.value)}
+          />
+          <button
+            onClick={login}
+            className="bg-black text-white p-2"
+          >
+            LOGIN
+          </button>
+        </div>
       </main>
     )
   }
 
   return (
-    <main style={{ padding: 40 }}>
-      <h1>ADMIN – GENERATE LICENSE</h1>
-
-      <button onClick={generate} disabled={loading}>
-        {loading ? "Generating..." : "Generate License"}
-      </button>
-
-      {license && (
-        <pre style={{ marginTop: 20, background: "#eee", padding: 10 }}>
-          {license}
-        </pre>
-      )}
+    <main className="min-h-screen p-10">
+      <h1 className="text-2xl font-bold mb-4">ADMIN PANEL</h1>
+      <p>Webhook Lynk AKTIF ✅</p>
+      <p>Auto-generate license AKTIF ✅</p>
     </main>
   )
 }
