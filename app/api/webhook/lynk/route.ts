@@ -13,7 +13,7 @@ export async function POST(req: Request) {
     "-" +
     Math.random().toString(36).slice(2, 6).toUpperCase()
 
-  await fetch("https://script.google.com/u/0/home/projects/1NEZtUIDUD1fMeDsqMHhSc5svcJiNCbChxC1SYI6XFGlFAN93fcmpc83r/edit", {
+  await fetch("https://script.google.com/macros/s/AKfycbyFgEt7dlKt4Q18zDYFsZkNraMN9v-_a61srkXAKr_nHPS-ldcKddnNsBuqkryzs8Zopw/exec", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, license })
