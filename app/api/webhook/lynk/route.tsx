@@ -21,7 +21,7 @@ export async function POST(req: Request) {
 
   // KIRIM KE GOOGLE SHEET (WEB APP /exec)
   await fetch(
-    "https://script.google.com/macros/s/AKfycbwy2VMKvv86NnxI8xyWs516KKptJgfQD5DS43vApVlSnHCUA3-JmxIKnzpmftcOqIPmtg/exec",
+    "https://script.google.com/macros/s/AKfycbwi9tbVrY1u0zfiZycKZ1QytPUnFn7oP9EYOiDKwdGDK2ULFgsQZVWp0ejHggVedrECOA/exec",
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
