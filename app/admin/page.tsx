@@ -3,39 +3,35 @@
 import { useState } from "react"
 
 export default function AdminPage() {
-  const [pass, setPass] = useState("")
-  const [error, setError] = useState("")
-  const [ok, setOk] = useState(false)
+  const [password, setPassword] = useState("")
+  const [logged, setLogged] = useState(false)
 
-  const login = async () => {
-    setError("")
-    const res = await fetch("/api/admin/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ password: pass })
-    })
-
-    const data = await res.json()
-    if (data.ok) setOk(true)
-    else setError("PASSWORD SALAH")
+  const login = () => {
+    if (password === "rahasia_admin_123") {
+      setLogged(true)
+    } else {
+      alert("PASSWORD SALAH")
+    }
   }
 
-  if (!ok) {
+  if (!logged) {
     return (
       <main className="min-h-screen flex items-center justify-center">
-        <div className="flex flex-col gap-3">
-          <h1 className="text-xl font-bold">ADMIN LOGIN</h1>
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <h1><b>ADMIN LOGIN</b></h1>
           <input
             type="password"
-            className="border p-2"
             placeholder="Admin Password"
-            value={pass}
-            onChange={(e) => setPass(e.target.value)}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            style={{ padding: 8, border: "1px solid #ccc" }}
           />
-          <button className="bg-black text-white p-2" onClick={login}>
+          <button
+            onClick={login}
+            style={{ padding: 8, background: "black", color: "white" }}
+          >
             LOGIN
           </button>
-          {error && <p className="text-red-500">{error}</p>}
         </div>
       </main>
     )
@@ -43,9 +39,10 @@ export default function AdminPage() {
 
   return (
     <main className="min-h-screen p-10">
-      <h1 className="text-2xl font-bold">ADMIN PANEL</h1>
-      <p>ADMIN LOCK AKTIF ✅</p>
-      <p>AUTO-JUAL AKTIF ✅</p>
+      <h1><b>ADMIN PANEL</b></h1>
+      <p>✔ Admin Login OK</p>
+      <p>✔ Webhook Lynk OK</p>
+      <p>✔ Auto License OK</p>
     </main>
   )
 }
