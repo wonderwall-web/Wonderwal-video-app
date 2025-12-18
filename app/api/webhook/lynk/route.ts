@@ -13,19 +13,11 @@ export async function POST(req: Request) {
     "-" +
     Math.random().toString(36).slice(2, 6).toUpperCase()
 
-  // 🔔 KIRIM KE GOOGLE SHEET
   await fetch("https://script.google.com/u/0/home/projects/1NEZtUIDUD1fMeDsqMHhSc5svcJiNCbChxC1SYI6XFGlFAN93fcmpc83r/edit", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      email,
-      license
-    })
+    body: JSON.stringify({ email, license })
   })
 
-  return NextResponse.json({
-    ok: true,
-    email,
-    license
-  })
+  return NextResponse.json({ ok: true, email, license })
 }
