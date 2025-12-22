@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server"
-import { LICENSES } from "@/app/lib/licenses"
 
 export async function POST(req: Request) {
   const body = await req.json()
@@ -10,10 +9,14 @@ export async function POST(req: Request) {
 
   const license = "LIC-" + Math.random().toString(36).substring(2, 8).toUpperCase()
 
-  LICENSES.set(license, {
-    email: body.email,
-    device: null,
-    active: true
+  await fetch(process.env.LYNK_WEBHOOK_URL!, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      email: body.email,
+      license,
+      source: "lynk"
+    })
   })
 
   return NextResponse.json({
