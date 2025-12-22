@@ -1,10 +1,20 @@
 import { NextResponse } from "next/server"
+import { LICENSES } from "@/app/lib/licenses"
 
 function gen() {
-  return Math.random().toString(36).substring(2, 6).toUpperCase()
+  return "LIC-" + Math.random().toString(36).substring(2, 6).toUpperCase()
 }
 
 export async function POST() {
-  const license = `LIC-${gen()}-${gen()}`
-  return NextResponse.json({ license })
+  const license = gen()
+
+  LICENSES.set(license, {
+    email: "",
+    device: null
+  })
+
+  return NextResponse.json({
+    ok: true,
+    license
+  })
 }
