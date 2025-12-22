@@ -1,12 +1,7 @@
 type LicenseData = {
   email: string
   device: string | null
+  active: boolean
 }
 
 export const LICENSES = new Map<string, LicenseData>()
-
-// contoh seed license (boleh dihapus nanti)
-LICENSES.set("LIC-OK-123", {
-  email: "",
-  device: null
-})
