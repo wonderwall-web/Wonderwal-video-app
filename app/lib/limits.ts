@@ -1,23 +1,27 @@
-type LimitData = {
+type Limit = {
   count: number
-  date: string
+  resetAt: number
 }
 
-export const LIMITS = new Map<string, LimitData>()
+const DAY = 24 * 60 * 60 * 1000
+const store = new Map<string, Limit>()
 
-export function checkLimit(license: string, maxPerDay: number) {
-  const today = new Date().toISOString().slice(0, 10)
-  const data = LIMITS.get(license)
+export function checkLimit(license: string, maxPerDay = 4) {
+  const now = Date.now()
+  const data = store.get(license)
 
-  if (!data || data.date !== today) {
-    LIMITS.set(license, { count: 1, date: today })
-    return true
+  if (!data || now > data.resetAt) {
+    store.set(license, {
+      count: 1,
+      resetAt: now + DAY
+    })
+    return { ok: true, left: maxPerDay - 1 }
   }
 
   if (data.count >= maxPerDay) {
-    return false
+    return { ok: false, left: 0 }
   }
 
   data.count++
-  return true
+  return { ok: true, left: maxPerDay - data.count }
 }

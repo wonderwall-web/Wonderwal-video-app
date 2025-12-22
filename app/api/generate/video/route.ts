@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { checkLimit } from "@/app/lib/limits"
 
 export async function POST(req: Request) {
   const license = req.headers.get("x-license")
@@ -17,8 +18,16 @@ export async function POST(req: Request) {
     )
   }
 
+  const limit = checkLimit(license, 4)
+  if (!limit.ok) {
+    return NextResponse.json(
+      { error: "LIMIT_REACHED" },
+      { status: 429 }
+    )
+  }
+
   return NextResponse.json({
     ok: true,
-    license
+    left_today: limit.left
   })
 }
