@@ -113,8 +113,19 @@ export default function BuilderPage() {
     };
   }, [isLoading]);
 
+  const promptTrending = useMemo(() => {
+    return [
+      "Kamu adalah penulis ide topik konten sejarah/legenda/budaya Indonesia.",
+      "Output WAJIB JSON valid saja (tanpa markdown).",
+      '{ "topic": "string" }',
+      `Beri 1 topik yang viral dan spesifik untuk kategori: ${project.style}.`,
+      "Topik harus berupa satu kalimat pendek (maks 120 karakter), bahasa Indonesia, konkret (tokoh/tempat/peristiwa).",
+    ].join("\n");
+  }, [project.style]);
+
   const promptScript = useMemo(() => {
     const aspect = project.format === "SHORT" ? "9:16" : "16:9";
+    const count = project.format === "SHORT" ? 9 : 18;
     return [
       "Kamu adalah generator skrip video 'Nusantara Diorama AI'.",
       "Output WAJIB JSON valid saja (tanpa markdown, tanpa penjelasan).",
@@ -130,39 +141,38 @@ export default function BuilderPage() {
       "  ]",
       "}",
       "",
-      `KONTEKS:`,
+      "KONTEKS:",
       `- Kategori/style: ${project.style}`,
       `- Format: ${project.format} (aspect ${aspect})`,
       `- Topik/kisah: ${project.topic}`,
       "",
       "ATURAN:",
-      `- Buat ${project.format === "SHORT" ? "9" : "18"} scenes.`,
+      `- Buat ${count} scenes.`,
       "- Tiap scene harus punya id unik, narrative, imagePromptA, imagePromptB.",
-      "- Gunakan gaya 'miniature diorama' (tilt-shift, macro lens, texture detail, museum-grade).",
+      "- Visual harus gaya 'miniature diorama' (tilt-shift, macro lens, texture detail, museum-grade).",
       "- Jangan sebut 'AI' di narasi. Fokus kisah & emosi.",
     ].join("\n");
   }, [project.format, project.style, project.topic]);
 
-  const promptTrending = useMemo(() => {
-    return [
-      "Kamu adalah penulis ide topik konten sejarah/legenda/budaya Indonesia.",
-      "Output WAJIB JSON valid saja (tanpa markdown).",
-      '{ "topic": "string" }',
-      `Beri 1 topik yang viral dan spesifik untuk kategori: ${project.style}.`,
-      "Topik harus berupa satu kalimat pendek (maks 120 karakter), bahasa Indonesia, konkret (tokoh/tempat/peristiwa).",
-    ].join("\n");
-  }, [project.style]);
-
   async function callGenerate(prompt: string) {
     const res = await fetch("/api/generate", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ apiKey, prompt }),
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey || "",
+      },
+      body: JSON.stringify({
+        apiKey,
+        key: apiKey,
+        prompt,
+      }),
     });
 
     const data = await res.json().catch(() => null);
+
     if (!res.ok) throw new Error(data?.error || data?.message || "Request gagal.");
     if (!data?.ok) throw new Error(data?.error || "Generate gagal.");
+
     return data?.output as string;
   }
 
@@ -195,14 +205,17 @@ export default function BuilderPage() {
       const jsonText = pickJsonFromText(out) ?? out;
       const parsed = safeJsonParse<ScriptResult>(jsonText);
 
-      const scenes = parsed?.scenes?.map((s) => ({
-        id: s?.id || uid(),
-        narrative: (s?.narrative || "").trim(),
-        imagePromptA: (s?.imagePromptA || "").trim(),
-        imagePromptB: (s?.imagePromptB || "").trim(),
-      }))?.filter((s) => s.narrative);
+      const scenes =
+        parsed?.scenes
+          ?.map((s) => ({
+            id: s?.id || uid(),
+            narrative: (s?.narrative || "").trim(),
+            imagePromptA: (s?.imagePromptA || "").trim(),
+            imagePromptB: (s?.imagePromptB || "").trim(),
+          }))
+          ?.filter((s) => s.narrative) ?? [];
 
-      if (!scenes || scenes.length === 0) throw new Error("JSON scenes kosong / tidak valid.");
+      if (scenes.length === 0) throw new Error("JSON scenes kosong / tidak valid.");
 
       setProject((p) => ({ ...p, scenes }));
       setCurrentStep(1);
@@ -258,12 +271,8 @@ export default function BuilderPage() {
       )}
 
       <header className="h-16 border-b-4 border-black bg-comic-yellow sticky top-0 z-[100] flex items-center justify-between px-8 shadow-comic">
-        <div
-          className="flex items-center gap-3 cursor-pointer font-display text-black text-xl italic"
-          onClick={() => setCurrentStep(0)}
-        >
-          <Compass size={24} className="p-1 bg-comic-pink border-2 border-black rounded shadow-comic" /> NUSANTARA
-          DIORAMA AI
+        <div className="flex items-center gap-3 cursor-pointer font-display text-black text-xl italic" onClick={() => setCurrentStep(0)}>
+          <Compass size={24} className="p-1 bg-comic-pink border-2 border-black rounded shadow-comic" /> NUSANTARA DIORAMA AI
         </div>
         <div className="text-[10px] font-black text-black uppercase tracking-tighter hidden sm:block">
           Builder • Generate via /api/generate
@@ -285,7 +294,7 @@ export default function BuilderPage() {
 
               <div className="space-y-4">
                 <label className="bg-slate-200 border-2 border-black px-2 py-0.5 text-[10px] font-black text-black uppercase">
-                  API Key (opsional kalau backend kamu pakai server key)
+                  API Key
                 </label>
                 <input
                   value={apiKey}
@@ -347,11 +356,7 @@ export default function BuilderPage() {
                     className="bg-slate-100 border-2 border-dashed border-black rounded-2xl flex items-center justify-center cursor-pointer shadow-inner overflow-hidden min-h-[60px]"
                   >
                     {project.referenceImage ? (
-                      <img
-                        src={`data:image/jpeg;base64,${project.referenceImage}`}
-                        className="w-full h-full object-cover"
-                        alt="ref"
-                      />
+                      <img src={`data:image/jpeg;base64,${project.referenceImage}`} className="w-full h-full object-cover" alt="ref" />
                     ) : (
                       <div className="text-black font-display text-[9px] flex flex-col items-center">
                         <Upload size={12} /> REF IMAGE
@@ -364,8 +369,7 @@ export default function BuilderPage() {
                         const file = e.target.files?.[0];
                         if (file) {
                           const reader = new FileReader();
-                          reader.onload = () =>
-                            setProject({ ...project, referenceImage: (reader.result as string).split(",")[1] });
+                          reader.onload = () => setProject({ ...project, referenceImage: (reader.result as string).split(",")[1] });
                           reader.readAsDataURL(file);
                         }
                       }}
@@ -385,8 +389,7 @@ export default function BuilderPage() {
                       disabled={isSearching || isLoading}
                       className="text-[10px] font-black text-comic-purple flex items-center gap-1 hover:scale-110 uppercase disabled:opacity-50"
                     >
-                      {isSearching ? <Loader2 size={12} className="animate-spin" /> : <Zap size={12} fill="currentColor" />}{" "}
-                      CARI TOPIK
+                      {isSearching ? <Loader2 size={12} className="animate-spin" /> : <Zap size={12} fill="currentColor" />} CARI TOPIK
                     </button>
                   </div>
                   <textarea
@@ -412,10 +415,7 @@ export default function BuilderPage() {
         {currentStep === 1 && (
           <div className="p-4 sm:p-8 space-y-6 animate-fadeIn overflow-y-auto h-full custom-scrollbar pb-24">
             <div className="flex justify-between items-center bg-white border-4 border-black p-4 rounded-3xl shadow-comic sticky top-0 z-50">
-              <button
-                onClick={() => setCurrentStep(0)}
-                className="bg-comic-pink p-2 border-4 border-black rounded shadow-comic"
-              >
+              <button onClick={() => setCurrentStep(0)} className="bg-comic-pink p-2 border-4 border-black rounded shadow-comic">
                 <ChevronLeft size={20} className="text-black" />
               </button>
               <h2 className="font-display text-black text-xl sm:text-2xl uppercase italic truncate px-2">{project.topic}</h2>
@@ -453,7 +453,7 @@ export default function BuilderPage() {
                     <button
                       disabled
                       className="px-4 py-2 border-4 border-black rounded-xl font-display text-[10px] text-black shadow-comic flex items-center gap-2 bg-slate-200 opacity-60 cursor-not-allowed"
-                      title="Fitur ini akan dipindah ke endpoint server (/api/image, /api/voice) di langkah berikutnya"
+                      title="Next: pindah ke endpoint server (/api/image, /api/voice)"
                     >
                       <ImageIcon size={12} /> IMAGE/AUDIO (NEXT)
                     </button>
@@ -497,7 +497,7 @@ export default function BuilderPage() {
 
             <div className="bg-comic-purple border-4 border-black rounded-[2.5rem] shadow-comic-lg p-6 sm:p-8 flex items-center justify-between">
               <div className="font-display text-white uppercase italic text-sm sm:text-base">
-                NEXT: tambah /api/image & /api/voice untuk generate aset tanpa API key di browser
+                NEXT: tambah /api/image & /api/voice (server) + credit system
               </div>
               <div className="flex items-center gap-2 text-white font-black text-[10px] uppercase">
                 <Video size={16} /> Pro Mode Soon
