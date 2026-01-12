@@ -9,9 +9,6 @@ export default function Page() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
-  const VALIDATE_BASE =
-    "https://script.google.com/macros/s/AKfycbyhvIp_KNCqgxe3aOEmWhAIgrasmHKqjfsgc7m5I7cVGn0HoThZ0rm570kqugMoM_0xzg/exec?mode=validate&license=";
-
   useEffect(() => {
     const saved = localStorage.getItem("wonderwal_license");
     if (saved) validate(saved, true);
@@ -37,7 +34,7 @@ export default function Page() {
     }
 
     try {
-      const res = await fetch(VALIDATE_BASE + encodeURIComponent(lic), {
+      const res = await fetch("/api/validate?license=" + encodeURIComponent(lic), {
         cache: "no-store",
       });
       const data = await res.json();
