@@ -10,7 +10,7 @@ export default function Page() {
   const router = useRouter();
 
   const VALIDATE_BASE =
-    "https://script.google.com/macros/s/AKfycbwgOrA89_mwqeA1gFtBvqWDSaNoVJANaCWLx_UuUn4LMrBEYtmGCuaSwUbxQuWw77xB1w/exec?mode=validate&license=";
+    "https://script.google.com/macros/s/AKfycbyhvIp_KNCqgxe3aOEmWhAIgrasmHKqjfsgc7m5I7cVGn0HoThZ0rm570kqugMoM_0xzg/exec?mode=validate&license=";
 
   useEffect(() => {
     const saved = localStorage.getItem("wonderwal_license");
