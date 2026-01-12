@@ -1,38 +1,56 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 export default function Page() {
   const [license, setLicense] = useState("");
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const sp = useSearchParams();
+
+  const VALIDATE_BASE =
+    "https://script.google.com/macros/s/AKfycbwgOrA89_mwqeA1gFtBvqWDSaNoVJANaCWLx_UuUn4LMrBEYtmGCuaSwUbxQuWw77xB1w/exec?mode=validate&license=";
 
   useEffect(() => {
     const saved = localStorage.getItem("wonderwal_license");
     if (saved) validate(saved, true);
   }, []);
 
+  const setCookie = (lic: string) => {
+    document.cookie = `wonderwal_license=${encodeURIComponent(
+      lic
+    )}; Path=/; Max-Age=31536000; SameSite=Lax`;
+  };
+
+  const clearCookie = () => {
+    document.cookie = "wonderwal_license=; Path=/; Max-Age=0; SameSite=Lax";
+  };
+
   const validate = async (lic: string, silent = false) => {
+    lic = String(lic || "").trim();
+    if (!lic) return;
+
     if (!silent) {
       setLoading(true);
       setStatus("Checking...");
     }
 
     try {
-      const res = await fetch(
-        "https://script.google.com/macros/s/AKfycbx9LdpzUm-OHDkcoG2MD5udcllTywWwN9764WdPNqr2tQpQwntxcVf6xICKrCJe9UmKeg/exec?mode=validate&license=" +
-          encodeURIComponent(lic)
-      );
-
+      const res = await fetch(VALIDATE_BASE + encodeURIComponent(lic), {
+        cache: "no-store",
+      });
       const data = await res.json();
 
       if (data.valid) {
         localStorage.setItem("wonderwal_license", lic);
-        router.push("/admin");
+        setCookie(lic);
+        const next = sp.get("next") || "/admin";
+        router.push(next);
       } else {
         localStorage.removeItem("wonderwal_license");
+        clearCookie();
         setStatus("❌ License invalid");
       }
     } catch {
@@ -50,7 +68,7 @@ export default function Page() {
         value={license}
         onChange={(e) => setLicense(e.target.value)}
         placeholder="Masukkan license"
-        style={{ padding: 10, width: 300, marginBottom: 10 }}
+        style={{ padding: 10, width: 320, marginBottom: 10 }}
       />
 
       <button
