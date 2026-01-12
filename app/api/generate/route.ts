@@ -1,28 +1,29 @@
 import { NextResponse } from "next/server";
 
+const VERSION = "gen-v2-debug-20260112";
+
 function pickText(data: any): string {
   const parts = data?.candidates?.[0]?.content?.parts;
   if (Array.isArray(parts)) {
-    const t = parts.map((p: any) => p?.text || "").join("").trim();
+    const t = parts.map((p: any) => (p?.text ? String(p.text) : "")).join("").trim();
     if (t) return t;
   }
-
-  const alt1 = data?.candidates?.[0]?.content?.text;
-  if (typeof alt1 === "string" && alt1.trim()) return alt1.trim();
-
-  const alt2 = data?.text;
-  if (typeof alt2 === "string" && alt2.trim()) return alt2.trim();
-
+  const alt = data?.candidates?.[0]?.content?.text;
+  if (typeof alt === "string" && alt.trim()) return alt.trim();
   return "";
 }
 
+export async function GET() {
+  return NextResponse.json({ ok: true, version: VERSION, method: "GET" });
+}
+
 export async function POST(req: Request) {
-  const body = await req.json();
+  const body = await req.json().catch(() => ({}));
   const apiKey = String(body.apiKey || "").trim();
   const prompt = String(body.prompt || "").trim();
 
-  if (!apiKey) return NextResponse.json({ ok: false, error: "missing_api_key" }, { status: 400 });
-  if (!prompt) return NextResponse.json({ ok: false, error: "missing_prompt" }, { status: 400 });
+  if (!apiKey) return NextResponse.json({ ok: false, error: "missing_api_key", version: VERSION }, { status: 400 });
+  if (!prompt) return NextResponse.json({ ok: false, error: "missing_prompt", version: VERSION }, { status: 400 });
 
   try {
     const r = await fetch(
@@ -42,32 +43,33 @@ export async function POST(req: Request) {
     let data: any = {};
     try { data = JSON.parse(rawText); } catch {}
 
-    const output = pickText(data);
-
     if (!r.ok) {
       return NextResponse.json(
         {
           ok: false,
           error: "gemini_http_error",
           status: r.status,
+          version: VERSION,
           details: data?.error || data,
         },
         { status: 500 }
       );
     }
 
+    const output = pickText(data);
+
     if (!output) {
       return NextResponse.json({
         ok: false,
         error: "empty_output",
+        version: VERSION,
         finishReason: data?.candidates?.[0]?.finishReason || null,
         safetyRatings: data?.candidates?.[0]?.safetyRatings || null,
-        note: "Gemini membalas tapi teks kosong. Biasanya karena policy/safety atau format response.",
       });
     }
 
-    return NextResponse.json({ ok: true, output });
+    return NextResponse.json({ ok: true, output, version: VERSION });
   } catch {
-    return NextResponse.json({ ok: false, error: "fetch_failed" }, { status: 500 });
+    return NextResponse.json({ ok: false, error: "fetch_failed", version: VERSION }, { status: 500 });
   }
 }
