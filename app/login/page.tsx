@@ -1,14 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 
 export default function Page() {
   const [license, setLicense] = useState("");
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
-  const sp = useSearchParams();
 
   const VALIDATE_BASE =
     "https://script.google.com/macros/s/AKfycbwgOrA89_mwqeA1gFtBvqWDSaNoVJANaCWLx_UuUn4LMrBEYtmGCuaSwUbxQuWw77xB1w/exec?mode=validate&license=";
@@ -46,8 +45,7 @@ export default function Page() {
       if (data.valid) {
         localStorage.setItem("wonderwal_license", lic);
         setCookie(lic);
-        const next = sp.get("next") || "/admin";
-        router.push(next);
+        router.push("/admin");
       } else {
         localStorage.removeItem("wonderwal_license");
         clearCookie();
