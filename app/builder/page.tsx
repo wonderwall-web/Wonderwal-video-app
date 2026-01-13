@@ -34,7 +34,6 @@ type Scene = {
   imagePromptA: string;
   imagePromptB: string;
 
-  // (placeholder untuk future image/audio)
   imageDataA?: string;
   imageDataB?: string;
   audioRaw?: string;
@@ -95,7 +94,7 @@ async function callGenerate(apiKey: string, prompt: string) {
       "Content-Type": "application/json",
       "x-api-key": apiKey || "",
     },
-    body: JSON.stringify({ apiKey, key: apiKey, prompt }),
+    body: JSON.stringify({ apiKey, prompt }),
   });
   const data = await res.json().catch(() => null);
   if (!res.ok) throw new Error(data?.error || data?.message || "Request gagal");
@@ -103,7 +102,7 @@ async function callGenerate(apiKey: string, prompt: string) {
   return String(data?.output || "");
 }
 
-const App: React.FC = () => {
+export default function BuilderPage() {
   const [currentStep, setCurrentStep] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [loadingMsg, setLoadingMsg] = useState(LOADING_MESSAGES[0]);
@@ -130,7 +129,7 @@ const App: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const loadingIntervalRef = useRef<number | null>(null);
 
-  // ✅ ADD APIKEY (5 SLOT)
+  // ADD APIKEY (5 SLOT)
   const [showKeyMenu, setShowKeyMenu] = useState(false);
   const [apiKeys, setApiKeys] = useState<string[]>(["", "", "", "", ""]);
   const [activeKeyIndex, setActiveKeyIndex] = useState(0);
@@ -196,9 +195,7 @@ const App: React.FC = () => {
 
   const togglePlaySceneAudio = (sceneId: string, buffer: AudioBuffer) => {
     audioSourcesRef.current.forEach((s) => {
-      try {
-        s.stop();
-      } catch {}
+      try { s.stop(); } catch {}
     });
     audioSourcesRef.current = [];
 
@@ -270,9 +267,8 @@ const App: React.FC = () => {
     }
   };
 
-  // Placeholder untuk asset (biar tombol lama nggak error)
-  const handleGenerateAsset = async (_sceneId: string, _type: "IMAGE_A" | "IMAGE_B" | "AUDIO") => {
-    setErrorMessage("Fitur image/audio belum diaktifkan. (Next: /api/image & /api/voice)");
+  const handleGenerateAsset = async () => {
+    setErrorMessage("Fitur image/audio belum diaktifkan di versi Next ini. (Next: /api/image & /api/voice)");
   };
 
   const handleDownloadSingleImage = (base64Data: string | undefined, filename: string) => {
@@ -322,7 +318,6 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {/* HEADER */}
       <header className="h-16 border-b-4 border-black bg-comic-yellow sticky top-0 z-[100] flex items-center justify-between px-8 shadow-comic">
         <div className="flex items-center gap-3 cursor-pointer font-display text-black text-xl italic" onClick={() => setCurrentStep(0)}>
           <Compass size={24} className="p-1 bg-comic-pink border-2 border-black rounded shadow-comic" /> NUSANTARA DIORAMA AI
@@ -335,14 +330,12 @@ const App: React.FC = () => {
           >
             <KeyRound size={16} /> ADD APIKEY
           </button>
-
           <div className="text-[10px] font-black text-black uppercase tracking-tighter hidden sm:block">
             KEY AKTIF: #{activeKeyIndex + 1} {apiKey ? "✅" : "❌"}
           </div>
         </div>
       </header>
 
-      {/* MODAL ADD APIKEY */}
       {showKeyMenu && (
         <div className="fixed inset-0 z-[1200] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="w-full max-w-2xl bg-white border-8 border-black rounded-[2.5rem] shadow-comic-lg p-6 sm:p-8 text-black">
@@ -358,9 +351,7 @@ const App: React.FC = () => {
             <div className="space-y-3">
               {apiKeys.map((k, i) => (
                 <div key={i} className="flex items-center gap-2">
-                  <div className="w-10 h-10 bg-comic-yellow border-4 border-black rounded-xl flex items-center justify-center font-display text-lg shadow-comic">
-                    {i + 1}
-                  </div>
+                  <div className="w-10 h-10 bg-comic-yellow border-4 border-black rounded-xl flex items-center justify-center font-display text-lg shadow-comic">{i + 1}</div>
                   <input
                     value={k}
                     onChange={(e) => {
@@ -397,7 +388,6 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {/* MAIN */}
       <main className="flex-1 overflow-x-hidden">
         {currentStep === 0 && (
           <div className="h-full flex items-center justify-center p-4 sm:p-8 animate-fadeIn">
@@ -406,7 +396,6 @@ const App: React.FC = () => {
                 <h1 className="text-4xl sm:text-5xl font-display text-black leading-tight uppercase">
                   BUAT <span className="text-comic-purple">DIORAMA</span> SEJARAH
                 </h1>
-                <p className="text-black/60 font-black italic uppercase text-[10px] tracking-widest mt-2">Physical Macro Miniature Storyteller</p>
               </div>
 
               <div className="space-y-6">
@@ -437,10 +426,10 @@ const App: React.FC = () => {
                   <div className="space-y-2">
                     <label className="bg-comic-pink border-2 border-black px-2 py-0.5 text-[10px] font-black text-black uppercase">2. Format</label>
                     <div className="flex gap-2">
-                      {["SHORT", "LONG"].map((f) => (
+                      {(["SHORT", "LONG"] as const).map((f) => (
                         <button
                           key={f}
-                          onClick={() => setProject({ ...project, format: f as VideoFormat })}
+                          onClick={() => setProject({ ...project, format: f })}
                           className={`flex-1 py-3 border-2 border-black font-display text-black uppercase ${project.format === f ? "bg-comic-yellow" : "bg-white shadow-comic"}`}
                         >
                           {f}
@@ -478,13 +467,13 @@ const App: React.FC = () => {
                   <div className="flex justify-between items-center">
                     <label className="bg-comic-cyan border-2 border-black px-2 py-0.5 text-[10px] font-black text-black uppercase">3. Tentukan Kisah</label>
                     <button onClick={handlePickRandomTopic} disabled={isSearching} className="text-[10px] font-black text-comic-purple flex items-center gap-1 hover:scale-110 uppercase disabled:opacity-50">
-                      {isSearching ? <Loader2 size={12} className="animate-spin" /> : <Zap size={12} fill="currentColor" />} CARI TOPIK ({project.style.split("_")[0]})
+                      {isSearching ? <Loader2 size={12} className="animate-spin" /> : <Zap size={12} fill="currentColor" />} CARI TOPIK
                     </button>
                   </div>
                   <textarea
                     value={project.topic}
                     onChange={(e) => setProject({ ...project, topic: e.target.value })}
-                    className="w-full bg-slate-50 border-4 border-black rounded-2xl p-4 text-sm text-black font-bold h-24 shadow-inner focus:outline-none focus:ring-2 ring-comic-purple/20"
+                    className="w-full bg-slate-50 border-4 border-black rounded-2xl p-4 text-sm text-black font-bold h-24 shadow-inner focus:outline-none"
                     placeholder="Tulis kejadian sejarah, tokoh, atau legenda..."
                   />
                 </div>
@@ -515,60 +504,27 @@ const App: React.FC = () => {
                   <div className="flex justify-between items-center">
                     <div className="flex items-center gap-3">
                       <div className="w-12 h-12 bg-comic-pink border-4 border-black rounded-xl flex items-center justify-center font-display text-2xl text-black shadow-comic">#{idx + 1}</div>
-                      {s.audioData && (
-                        <button
-                          onClick={() => togglePlaySceneAudio(s.id, s.audioData!)}
-                          className={`w-10 h-10 border-4 border-black rounded-xl flex items-center justify-center shadow-comic hover:scale-110 transition-all text-black ${playingAudioId === s.id ? "bg-comic-red animate-pulse" : "bg-comic-yellow"}`}
-                        >
-                          {playingAudioId === s.id ? <Pause size={20} fill="currentColor" /> : <Play size={20} fill="currentColor" className="ml-1" />}
-                        </button>
-                      )}
                     </div>
-                    <button onClick={() => handleGenerateAsset(s.id, "AUDIO")} disabled={s.isGeneratingAudio} className={`px-4 py-2 border-4 border-black rounded-xl font-display text-[10px] text-black shadow-comic flex items-center gap-2 ${s.audioData ? "bg-comic-purple/20" : "bg-comic-cyan"}`}>
-                      {s.isGeneratingAudio ? <Loader2 size={12} className="animate-spin" /> : <Mic size={12} />}
-                      {s.audioData ? "RE-GEN SUARA" : "GENERATE SUARA"}
+                    <button onClick={handleGenerateAsset} className="px-4 py-2 border-4 border-black rounded-xl font-display text-[10px] text-black shadow-comic flex items-center gap-2 bg-comic-cyan">
+                      <Mic size={12} /> GENERATE SUARA
                     </button>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <div className="aspect-[9/12] bg-black border-4 border-black rounded-2xl overflow-hidden relative shadow-inner">
-                        {s.imageDataA ? (
-                          <>
-                            <img src={`data:image/jpeg;base64,${s.imageDataA}`} className="w-full h-full object-cover" alt="A" />
-                            <button onClick={() => handleDownloadSingleImage(s.imageDataA, `Diorama_Panel_${idx + 1}_A`)} className="absolute top-2 right-2 p-2 bg-comic-yellow border-2 border-black rounded-full shadow-comic hover:scale-110 transition-all text-black z-10">
-                              <Download size={14} />
-                            </button>
-                          </>
-                        ) : (
-                          <div className="h-full flex items-center justify-center opacity-10">
-                            <ImageIcon size={40} />
-                          </div>
-                        )}
-                        {s.isGeneratingImageA && <div className="absolute inset-0 bg-white/60 flex items-center justify-center"><Loader2 size={24} className="animate-spin text-black" /></div>}
+                        <div className="h-full flex items-center justify-center opacity-10"><ImageIcon size={40} /></div>
                       </div>
-                      <button onClick={() => handleGenerateAsset(s.id, "IMAGE_A")} disabled={s.isGeneratingImageA} className="w-full py-2 bg-comic-pink border-4 border-black rounded-xl font-display text-[9px] text-black shadow-comic uppercase hover:shadow-none transition-all">
+                      <button onClick={handleGenerateAsset} className="w-full py-2 bg-comic-pink border-4 border-black rounded-xl font-display text-[9px] text-black shadow-comic uppercase">
                         A: Setup
                       </button>
                     </div>
 
                     <div className="space-y-2">
                       <div className="aspect-[9/12] bg-black border-4 border-black rounded-2xl overflow-hidden relative shadow-inner">
-                        {s.imageDataB ? (
-                          <>
-                            <img src={`data:image/jpeg;base64,${s.imageDataB}`} className="w-full h-full object-cover" alt="B" />
-                            <button onClick={() => handleDownloadSingleImage(s.imageDataB, `Diorama_Panel_${idx + 1}_B`)} className="absolute top-2 right-2 p-2 bg-comic-cyan border-2 border-black rounded-full shadow-comic hover:scale-110 transition-all text-black z-10">
-                              <Download size={14} />
-                            </button>
-                          </>
-                        ) : (
-                          <div className="h-full flex items-center justify-center opacity-10">
-                            <ImageIcon size={40} />
-                          </div>
-                        )}
-                        {s.isGeneratingImageB && <div className="absolute inset-0 bg-white/60 flex items-center justify-center"><Loader2 size={24} className="animate-spin text-black" /></div>}
+                        <div className="h-full flex items-center justify-center opacity-10"><ImageIcon size={40} /></div>
                       </div>
-                      <button onClick={() => handleGenerateAsset(s.id, "IMAGE_B")} disabled={s.isGeneratingImageB} className="w-full py-2 bg-comic-cyan border-4 border-black rounded-xl font-display text-[9px] text-black shadow-comic uppercase hover:shadow-none transition-all">
+                      <button onClick={handleGenerateAsset} className="w-full py-2 bg-comic-cyan border-4 border-black rounded-xl font-display text-[9px] text-black shadow-comic uppercase">
                         B: Klimaks
                       </button>
                     </div>
@@ -591,13 +547,7 @@ const App: React.FC = () => {
               <div className={`aspect-[${project.format === "SHORT" ? "9/16" : "16/9"}] w-full max-w-[min(100%,75vh*${project.format === "SHORT" ? "9/16" : "16/9"})] bg-black border-8 border-black rounded-[3rem] overflow-hidden shadow-comic-lg relative`}>
                 {!showCtaPreview ? (
                   <>
-                    {getCurrentActiveImage() ? (
-                      <img src={`data:image/jpeg;base64,${getCurrentActiveImage()}`} className="w-full h-full object-cover animate-fadeIn" alt="preview" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center opacity-20">
-                        <ImageIcon size={64} />
-                      </div>
-                    )}
+                    <div className="w-full h-full flex items-center justify-center opacity-20"><ImageIcon size={64} /></div>
                     <div className="absolute bottom-12 left-0 w-full px-6">
                       <div className="bg-white border-4 border-black p-4 tilt-left shadow-comic text-black font-display text-sm italic">"{currentScene?.narrative}"</div>
                     </div>
@@ -606,8 +556,7 @@ const App: React.FC = () => {
                   <div className="w-full h-full bg-comic-yellow flex flex-col items-center justify-center p-10 text-center animate-fadeIn relative">
                     <Heart size={80} fill="#f472b6" className="text-black mb-6 animate-pulse" strokeWidth={3} />
                     <h2 className="text-4xl font-display text-black uppercase leading-tight">
-                      GIMANA MENURUT KALIAN?<br />
-                      <span className="text-comic-pink text-5xl">FOLLOW YA!</span>
+                      GIMANA MENURUT KALIAN?<br /><span className="text-comic-pink text-5xl">FOLLOW YA!</span>
                     </h2>
                   </div>
                 )}
@@ -636,20 +585,6 @@ const App: React.FC = () => {
                 </button>
               </div>
             </div>
-
-            <div className="h-28 bg-comic-purple border-t-4 border-black flex items-center px-6 gap-6 overflow-x-auto custom-scrollbar flex-shrink-0">
-              {project.scenes.map((s, idx) => (
-                <div key={s.id} onClick={() => { setCurrentSceneIndex(idx); setShowCtaPreview(false); }} className={`min-w-[100px] h-20 border-4 border-black rounded-xl shadow-comic cursor-pointer overflow-hidden transition-all ${currentSceneIndex === idx && !showCtaPreview ? "scale-110 border-white ring-2 ring-black z-10" : "opacity-40 hover:opacity-100"}`}>
-                  {s.imageDataA || s.imageDataB ? (
-                    <img src={`data:image/jpeg;base64,${s.imageDataA || s.imageDataB}`} className="w-full h-full object-cover" alt="thumb" />
-                  ) : (
-                    <div className="w-full h-full bg-black flex items-center justify-center opacity-20">
-                      <ImageIcon size={24} />
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
           </div>
         )}
       </main>
@@ -662,6 +597,4 @@ const App: React.FC = () => {
       `}</style>
     </div>
   );
-};
-
-export default App;
+}
