@@ -56,7 +56,9 @@ export default function BuilderPage() {
       const data = await res.json().catch(() => ({}));
 
       if (!res.ok) {
-        setMsg(data?.error || "GENERATE_FAILED");
+        const err = data?.error || "GENERATE_FAILED";
+        const detail = data?.detail ? ` | ${data.detail}` : "";
+        setMsg(`${err}${detail}`);
         return;
       }
 
@@ -83,10 +85,7 @@ export default function BuilderPage() {
             License: <code>{license || "-"}</code> | Device: <code>{device || "-"}</code>
           </div>
         </div>
-        <button
-          onClick={onLogout}
-          style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid #555" }}
-        >
+        <button onClick={onLogout} style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid #555" }}>
           Logout
         </button>
       </div>
@@ -102,17 +101,16 @@ export default function BuilderPage() {
       <button
         onClick={onGenerate}
         disabled={loading}
-        style={{
-          padding: "12px 14px",
-          borderRadius: 12,
-          border: "1px solid #555",
-          cursor: loading ? "not-allowed" : "pointer",
-        }}
+        style={{ padding: "12px 14px", borderRadius: 12, border: "1px solid #555", cursor: loading ? "not-allowed" : "pointer" }}
       >
         {loading ? "Generating..." : "Generate"}
       </button>
 
-      {msg ? <div style={{ marginTop: 12, color: "#ffb4b4" }}>{msg}</div> : null}
+      {msg ? (
+        <div style={{ marginTop: 12, color: "#ffb4b4", whiteSpace: "pre-wrap" }}>
+          {msg}
+        </div>
+      ) : null}
 
       <div style={{ marginTop: 16 }}>
         <label style={{ display: "block", marginBottom: 6 }}>Output</label>
