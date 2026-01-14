@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { getDeviceId } from "@/lib/device";
+import { getDeviceId } from "@/app/lib/devices";
 
 export default function BuilderPage() {
   const router = useRouter();
@@ -17,6 +17,7 @@ export default function BuilderPage() {
   useEffect(() => {
     const d = getDeviceId();
     setDevice(d);
+
     const l = localStorage.getItem("LICENSE") || "";
     const k = localStorage.getItem("GEMINI_API_KEY") || "";
     if (!l || !k) {
