@@ -1,104 +1,94 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { getDeviceId } from "@/lib/device";
 
-export default function Page() {
+function getDeviceId() {
+  if (typeof window === "undefined") return "server";
+  let id = localStorage.getItem("DEVICE_ID");
+  if (!id) {
+    id = crypto.randomUUID();
+    localStorage.setItem("DEVICE_ID", id);
+  }
+  return id;
+}
+
+export default function Home() {
   const router = useRouter();
   const [license, setLicense] = useState("");
   const [apiKey, setApiKey] = useState("");
   const [device, setDevice] = useState("");
+  const [msg, setMsg] = useState("");
   const [loading, setLoading] = useState(false);
-  const [msg, setMsg] = useState<string>("");
 
   useEffect(() => {
-    const d = getDeviceId();
-    setDevice(d);
-    const savedLicense = localStorage.getItem("LICENSE") || "";
-    const savedApiKey = localStorage.getItem("GEMINI_API_KEY") || "";
-    setLicense(savedLicense);
-    setApiKey(savedApiKey);
+    setDevice(getDeviceId());
   }, []);
 
-  async function onLogin() {
+  async function login() {
     setMsg("");
-    if (!license.trim()) return setMsg("License wajib diisi.");
-    if (!apiKey.trim()) return setMsg("Gemini API Key wajib diisi.");
-
     setLoading(true);
-    try {
-      // simpan lokal dulu
-      localStorage.setItem("LICENSE", license.trim());
-      localStorage.setItem("GEMINI_API_KEY", apiKey.trim());
 
-      // opsional: ping generate dengan prompt dummy untuk validasi license+device via backend
+    try {
       const res = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          apiKey: apiKey.trim(),
-          license: license.trim(),
+          apiKey,
+          license,
           device,
           prompt: "ping",
         }),
       });
 
-      const data = await res.json().catch(() => ({}));
+      const data = await res.json();
+
       if (!res.ok) {
-        setMsg(data?.error || "Login gagal.");
+        setMsg(data?.error || "Login gagal");
         return;
       }
 
-      // sukses → masuk builder
+      localStorage.setItem("LICENSE", license);
+      localStorage.setItem("GEMINI_API_KEY", apiKey);
+
       router.push("/builder");
     } catch (e: any) {
-      setMsg(e?.message || "Login error.");
+      setMsg("Error: " + e.message);
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <main style={{ minHeight: "100vh", padding: 24, display: "grid", placeItems: "center" }}>
-      <div style={{ width: "min(520px, 100%)", border: "1px solid #333", borderRadius: 12, padding: 20 }}>
-        <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 12 }}>Wonderwal Login</h1>
+    <main style={{ minHeight: "100vh", display: "grid", placeItems: "center" }}>
+      <div style={{ width: 400, padding: 20, border: "1px solid #444", borderRadius: 12 }}>
+        <h2>Wonderwal Login</h2>
 
-        <label style={{ display: "block", marginBottom: 6 }}>License</label>
         <input
+          placeholder="License (TEST123)"
           value={license}
           onChange={(e) => setLicense(e.target.value)}
-          placeholder="contoh: TEST123"
-          style={{ width: "100%", padding: 10, borderRadius: 10, border: "1px solid #444", marginBottom: 14 }}
+          style={{ width: "100%", padding: 10, marginTop: 10 }}
         />
 
-        <label style={{ display: "block", marginBottom: 6 }}>Gemini API Key (BYOK)</label>
         <input
+          placeholder="Gemini API Key"
           value={apiKey}
           onChange={(e) => setApiKey(e.target.value)}
-          placeholder="AIza..."
-          style={{ width: "100%", padding: 10, borderRadius: 10, border: "1px solid #444", marginBottom: 14 }}
+          style={{ width: "100%", padding: 10, marginTop: 10 }}
         />
 
-        <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 14 }}>
-          Device ID: <code>{device || "-"}</code>
-        </div>
+        <div style={{ fontSize: 12, marginTop: 10 }}>Device: {device}</div>
 
         <button
-          onClick={onLogin}
+          onClick={login}
           disabled={loading}
-          style={{
-            width: "100%",
-            padding: 12,
-            borderRadius: 10,
-            border: "1px solid #555",
-            cursor: loading ? "not-allowed" : "pointer",
-          }}
+          style={{ width: "100%", padding: 12, marginTop: 15 }}
         >
           {loading ? "Loading..." : "Login"}
         </button>
 
-        {msg ? <div style={{ marginTop: 12, color: "#ffb4b4" }}>{msg}</div> : null}
+        {msg && <div style={{ color: "red", marginTop: 10 }}>{msg}</div>}
       </div>
     </main>
   );
