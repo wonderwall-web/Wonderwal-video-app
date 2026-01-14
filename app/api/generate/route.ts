@@ -1,51 +1,68 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
-const RATE_LIMIT = new Map<string, number>(); // license -> timestamp
+const RATE_LIMIT_MS = 2000;
 
-export async function POST(req: Request) {
+// in-memory rate limit (per license)
+const lastRequest = new Map<string, number>();
+
+export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { apiKey, license, device, prompt } = body;
+
+    const { apiKey, license, device, prompt } = body || {};
 
     if (!apiKey || !license || !device || !prompt) {
-      return NextResponse.json({ ok: false, error: "MISSING_FIELD" }, { status: 400 });
+      return NextResponse.json({ error: "MISSING_FIELD" }, { status: 400 });
     }
 
-    // Rate limit 1req/2s
+    // rate limit
     const now = Date.now();
-    const last = RATE_LIMIT.get(license) || 0;
-    if (now - last < 2000) {
-      return NextResponse.json({ ok: false, error: "RATE_LIMIT" }, { status: 429 });
+    const last = lastRequest.get(license) || 0;
+    if (now - last < RATE_LIMIT_MS) {
+      return NextResponse.json({ error: "RATE_LIMIT" }, { status: 429 });
     }
-    RATE_LIMIT.set(license, now);
+    lastRequest.set(license, now);
 
-    // Validate license + device ke Apps Script
-    const validateUrl = `https://script.google.com/macros/s/XXXXX/exec?license=${license}&device=${device}`;
-    const validate = await fetch(validateUrl).then(r => r.json());
+    // validate license via Apps Script
+    const validateUrl =
+      process.env.LICENSE_API_URL +
+      `?license=${encodeURIComponent(license)}&device=${encodeURIComponent(device)}`;
 
-    if (!validate.ok) {
-      return NextResponse.json({ ok: false, error: validate.error }, { status: 403 });
+    const vres = await fetch(validateUrl);
+    const vdata = await vres.json();
+
+    if (!vdata.ok) {
+      return NextResponse.json({ error: vdata.error || "LICENSE_INVALID" }, { status: 401 });
     }
 
-    // Call Gemini pakai API key user
-    const res = await fetch("https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-goog-api-key": apiKey
-      },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }]
-      })
-    });
+    // call Gemini (BYOK)
+    const geminiRes = await fetch(
+      "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=" +
+        apiKey,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [{ text: prompt }],
+            },
+          ],
+        }),
+      }
+    );
 
-    const json = await res.json();
+    const geminiData = await geminiRes.json();
 
-    return NextResponse.json({
-      ok: true,
-      output: json.candidates?.[0]?.content?.parts?.[0]?.text || ""
-    });
-  } catch (err) {
-    return NextResponse.json({ ok: false, error: "SERVER_ERROR" }, { status: 500 });
+    const output =
+      geminiData?.candidates?.[0]?.content?.parts?.[0]?.text ||
+      "No output";
+
+    return NextResponse.json({ ok: true, output });
+  } catch (err: any) {
+    return NextResponse.json(
+      { error: "SERVER_ERROR", detail: err?.message },
+      { status: 500 }
+    );
   }
 }
