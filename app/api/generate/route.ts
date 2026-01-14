@@ -3,25 +3,20 @@ import { NextRequest, NextResponse } from "next/server";
 const RATE_LIMIT_MS = 2000;
 const lastRequest = new Map<string, number>();
 
+const FALLBACK_LICENSE_API_URL =
+  "https://script.google.com/macros/s/AKfycbxVDINwsmkWY7gYCN_WCZjjkvST5A3vhoPO92jF04GR9jafXyqywCVTVHrn82uSp6YWcQ/exec";
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}));
     const { apiKey, license, device, prompt } = body || {};
-
     if (!apiKey || !license || !device || !prompt) {
       return NextResponse.json({ error: "MISSING_FIELD" }, { status: 400 });
     }
 
-    // ✅ ambil dari ENV yang kamu pakai di Vercel
-    const licenseApi =
-      process.env.LICENSE_API_URL || // <— ini yang ada di Vercel kamu
-      process.env.LICENSE_API_URL || // fallback kalau nanti kamu ganti nama
-      "";
+    const licenseApi = process.env.LICENSE_API_URL || process.env.LICENSE_API_URL || FALLBACK_LICENSE_API_URL;
 
-    if (!licenseApi) {
-      return NextResponse.json({ error: "LICENSE_API_URL_MISSING" }, { status: 500 });
-    }
-
+    // rate limit
     const now = Date.now();
     const last = lastRequest.get(license) || 0;
     if (now - last < RATE_LIMIT_MS) {
@@ -29,6 +24,7 @@ export async function POST(req: NextRequest) {
     }
     lastRequest.set(license, now);
 
+    // validate license
     const validateUrl =
       licenseApi +
       `?license=${encodeURIComponent(license)}&device=${encodeURIComponent(device)}`;
@@ -40,6 +36,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: vdata?.error || "LICENSE_INVALID" }, { status: 401 });
     }
 
+    // gemini
     const model = "gemini-1.5-flash";
     const geminiUrl =
       `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=` +

@@ -2,17 +2,28 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { getDeviceId } from "@/app/lib/devices";
+
+function getDeviceId() {
+  if (typeof window === "undefined") return "server";
+  let id = localStorage.getItem("DEVICE_ID");
+  if (!id) {
+    id = crypto.randomUUID();
+    localStorage.setItem("DEVICE_ID", id);
+  }
+  return id;
+}
 
 export default function BuilderPage() {
   const router = useRouter();
+
   const [license, setLicense] = useState("");
   const [apiKey, setApiKey] = useState("");
   const [device, setDevice] = useState("");
+
   const [prompt, setPrompt] = useState("Tulis 1 paragraf hook fakta aneh tentang lautan.");
   const [out, setOut] = useState("");
-  const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState("");
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const d = getDeviceId();
@@ -20,10 +31,12 @@ export default function BuilderPage() {
 
     const l = localStorage.getItem("LICENSE") || "";
     const k = localStorage.getItem("GEMINI_API_KEY") || "";
+
     if (!l || !k) {
-      router.push("/");
+      router.replace("/");
       return;
     }
+
     setLicense(l);
     setApiKey(k);
   }, [router]);
@@ -32,6 +45,7 @@ export default function BuilderPage() {
     setMsg("");
     setOut("");
     setLoading(true);
+
     try {
       const res = await fetch("/api/generate", {
         method: "POST",
@@ -40,13 +54,15 @@ export default function BuilderPage() {
       });
 
       const data = await res.json().catch(() => ({}));
+
       if (!res.ok) {
-        setMsg(data?.error || "Generate gagal.");
+        setMsg(data?.error || "GENERATE_FAILED");
         return;
       }
+
       setOut(data?.output || "");
     } catch (e: any) {
-      setMsg(e?.message || "Generate error.");
+      setMsg(e?.message || "GENERATE_ERROR");
     } finally {
       setLoading(false);
     }
@@ -55,7 +71,7 @@ export default function BuilderPage() {
   function onLogout() {
     localStorage.removeItem("LICENSE");
     localStorage.removeItem("GEMINI_API_KEY");
-    router.push("/");
+    router.replace("/");
   }
 
   return (
@@ -63,11 +79,14 @@ export default function BuilderPage() {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: 16 }}>
         <div>
           <div style={{ fontSize: 18, fontWeight: 700 }}>Builder</div>
-          <div style={{ fontSize: 12, opacity: 0.8 }}>
-            License: <code>{license}</code> | Device: <code>{device}</code>
+          <div style={{ fontSize: 12, opacity: 0.85 }}>
+            License: <code>{license || "-"}</code> | Device: <code>{device || "-"}</code>
           </div>
         </div>
-        <button onClick={onLogout} style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid #555" }}>
+        <button
+          onClick={onLogout}
+          style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid #555" }}
+        >
           Logout
         </button>
       </div>
@@ -83,7 +102,12 @@ export default function BuilderPage() {
       <button
         onClick={onGenerate}
         disabled={loading}
-        style={{ padding: "12px 14px", borderRadius: 12, border: "1px solid #555", cursor: loading ? "not-allowed" : "pointer" }}
+        style={{
+          padding: "12px 14px",
+          borderRadius: 12,
+          border: "1px solid #555",
+          cursor: loading ? "not-allowed" : "pointer",
+        }}
       >
         {loading ? "Generating..." : "Generate"}
       </button>
