@@ -12,9 +12,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "MISSING_FIELD" }, { status: 400 });
     }
 
+    // ✅ ambil dari ENV yang kamu pakai di Vercel
     const licenseApi =
-      process.env.LICENSE_API_URL ||
-      process.env.LICENSE_API_URL ||
+      process.env.LICENSE_API_URL || // <— ini yang ada di Vercel kamu
+      process.env.LICENSE_API_URL || // fallback kalau nanti kamu ganti nama
       "";
 
     if (!licenseApi) {
@@ -32,7 +33,7 @@ export async function POST(req: NextRequest) {
       licenseApi +
       `?license=${encodeURIComponent(license)}&device=${encodeURIComponent(device)}`;
 
-    const vres = await fetch(validateUrl, { method: "GET" });
+    const vres = await fetch(validateUrl);
     const vdata = await vres.json().catch(() => null);
 
     if (!vdata?.ok) {
