@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSessionCookieName, signSession } from "@/lib/auth";
+import { getSessionCookieName, signSession } from "../../lib/auth";
 
 export const runtime = "nodejs";
 
@@ -19,7 +19,6 @@ async function validateToAppsScript(licenseApiUrl: string, license: string, devi
 
   if (!res.ok) return { ok: false, code: "LICENSE_API_DOWN", raw };
 
-  // Apps Script kamu: { ok:true, code:"OK"/"BOUND" } atau { ok:false, error:"..." }
   if (obj && typeof obj.ok === "boolean") {
     if (obj.ok === true) return { ok: true, code: String(obj.code || "OK").toUpperCase(), raw };
     return { ok: false, code: String(obj.error || "LICENSE_INVALID").toUpperCase(), raw };
@@ -66,7 +65,7 @@ export async function POST(req: Request) {
     secure: true,
     sameSite: "lax",
     path: "/",
-    maxAge: 60 * 60 * 24 * 365, // 1 tahun
+    maxAge: 60 * 60 * 24 * 365,
   });
 
   return res;
