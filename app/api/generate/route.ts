@@ -10,43 +10,23 @@ function getLimiterStore(): Map<string, number> {
   return g.__wwLimiter;
 }
 
-function extractCodeFromText(raw: string): string {
-  const t = (raw || "").toUpperCase();
+function normalizeResultFromAppsScript(obj: AnyObj, rawText: string) {
+  const okBool = typeof obj?.ok === "boolean" ? obj.ok : null;
 
-  // Common codes we care about
-  const codes = [
-    "OK",
-    "BOUND",
-    "DEVICE_MISMATCH",
-    "LICENSE_NOT_FOUND",
-    "LICENSE_INACTIVE",
-    "LICENSE_INVALID",
-    "INVALID_REQUEST",
-  ];
+  // Apps Script kamu: { ok:false, error:"LICENSE_NOT_FOUND" } atau { ok:true, code:"OK"/"BOUND" } (mungkin)
+  const codeOrStatus = [obj?.code, obj?.status, obj?.result].find((x) => x !== undefined && x !== null);
+  const err = obj?.error;
 
-  for (const c of codes) {
-    if (t.includes(c)) return c;
-  }
+  const code =
+    (okBool === true && (codeOrStatus ? String(codeOrStatus) : "OK")) ||
+    (err ? String(err) : (codeOrStatus ? String(codeOrStatus) : "UNKNOWN"));
 
-  return "UNKNOWN";
-}
+  const codeUp = code.toUpperCase();
 
-function extractCodeFromJson(obj: AnyObj): string {
-  const candidates = [
-    obj?.code,
-    obj?.status,
-    obj?.result,
-    obj?.message,
-  ]
-    .filter(Boolean)
-    .map((x) => String(x).toUpperCase());
+  // Anggap sukses bila ok:true
+  const ok = okBool === true || codeUp === "OK" || codeUp === "BOUND";
 
-  for (const s of candidates) {
-    const c = extractCodeFromText(s);
-    if (c !== "UNKNOWN") return c;
-  }
-
-  return "UNKNOWN";
+  return { ok, code: codeUp, raw: rawText };
 }
 
 async function validateLicense(licenseApiUrl: string, license: string, device: string) {
@@ -58,23 +38,25 @@ async function validateLicense(licenseApiUrl: string, license: string, device: s
     const res = await fetch(url, { method: "GET", signal: controller.signal, cache: "no-store" });
     const raw = await res.text();
 
-    let code = "UNKNOWN";
-    let parsed: AnyObj | null = null;
-
+    // Must be JSON (Apps Script kamu JSON)
+    let obj: AnyObj | null = null;
     try {
-      parsed = JSON.parse(raw) as AnyObj;
-      code = extractCodeFromJson(parsed);
+      obj = JSON.parse(raw) as AnyObj;
     } catch {
-      code = extractCodeFromText(raw);
+      obj = null;
     }
 
-    const ok = code === "OK" || code === "BOUND";
+    if (!obj || typeof obj !== "object") {
+      return { httpOk: res.ok, ok: false, code: "BAD_RESPONSE", raw };
+    }
+
+    const norm = normalizeResultFromAppsScript(obj, raw);
 
     return {
       httpOk: res.ok,
-      ok,
-      code,
-      raw,
+      ok: norm.ok,
+      code: norm.code,
+      raw: norm.raw,
     };
   } finally {
     clearTimeout(t);
@@ -121,36 +103,24 @@ export async function POST(req: Request) {
 
   const v = await validateLicense(licenseApiUrl, license, device);
 
-  // Kalau Apps Script down / non-200
   if (!v.httpOk) {
+    return NextResponse.json({ ok: false, error: "LICENSE_API_DOWN" }, { status: 502 });
+  }
+
+  if (v.code === "BAD_RESPONSE") {
     return NextResponse.json(
-      { ok: false, error: "LICENSE_API_DOWN", code: v.code },
+      { ok: false, error: "LICENSE_API_BAD_RESPONSE", raw_preview: v.raw.slice(0, 180) },
       { status: 502 }
     );
   }
 
-  // Kalau responnya aneh banget (UNKNOWN), kasih error yang jelas
-  if (v.code === "UNKNOWN") {
-    return NextResponse.json(
-      {
-        ok: false,
-        error: "LICENSE_API_BAD_RESPONSE",
-        message: "Apps Script membalas 200 tapi formatnya tidak terbaca (bukan JSON/teks code).",
-        raw_preview: v.raw.slice(0, 180),
-      },
-      { status: 502 }
-    );
-  }
-
-  // Kalau license ditolak
   if (!v.ok) {
     return NextResponse.json({ ok: false, error: v.code }, { status: 403 });
   }
 
-  // OK / BOUND
   return NextResponse.json({
     ok: true,
     output: `DUMMY_OK: ${prompt}`,
-    license_status: v.code,
+    license_status: v.code, // OK atau BOUND (kalau Apps Script ngasih)
   });
 }
