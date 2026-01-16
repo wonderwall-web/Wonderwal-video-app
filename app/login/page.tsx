@@ -1,80 +1,107 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
-export default function Page() {
-  const [license, setLicense] = useState("");
-  const [status, setStatus] = useState("");
-  const [loading, setLoading] = useState(false);
+function getOrCreateDeviceId() {
+  const key = "ww_device_id";
+  const existing = localStorage.getItem(key);
+  if (existing) return existing;
+
+  const id = (crypto as any).randomUUID ? crypto.randomUUID() : `DEV-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  localStorage.setItem(key, id);
+  return id;
+}
+
+export default function LoginPage() {
   const router = useRouter();
+  const [license, setLicense] = useState("");
+  const [device, setDevice] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
-    const saved = localStorage.getItem("wonderwal_license");
-    if (saved) validate(saved, true);
+    setDevice(getOrCreateDeviceId());
   }, []);
 
-  const setCookie = (lic: string) => {
-    document.cookie = `wonderwal_license=${encodeURIComponent(
-      lic
-    )}; Path=/; Max-Age=31536000; SameSite=Lax`;
-  };
+  const maskedDevice = useMemo(() => {
+    if (!device) return "";
+    if (device.length <= 8) return device;
+    return `${device.slice(0, 4)}…${device.slice(-4)}`;
+  }, [device]);
 
-  const clearCookie = () => {
-    document.cookie = "wonderwal_license=; Path=/; Max-Age=0; SameSite=Lax";
-  };
-
-  const validate = async (lic: string, silent = false) => {
-    lic = String(lic || "").trim();
-    if (!lic) return;
-
-    if (!silent) {
-      setLoading(true);
-      setStatus("Checking...");
-    }
+  async function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setErr(null);
+    setLoading(true);
 
     try {
-      const res = await fetch("/api/validate?license=" + encodeURIComponent(lic), {
-        cache: "no-store",
+      const res = await fetch("/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ license, device }),
       });
-      const data = await res.json();
 
-      if (data.valid) {
-        localStorage.setItem("wonderwal_license", lic);
-        setCookie(lic);
-        router.push("/admin");
-      } else {
-        localStorage.removeItem("wonderwal_license");
-        clearCookie();
-        setStatus("❌ License invalid");
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok || !data?.ok) {
+        setErr(data?.error || "LOGIN_FAILED");
+        setLoading(false);
+        return;
       }
-    } catch {
-      setStatus("❌ Server error");
-    }
 
-    setLoading(false);
-  };
+      router.replace("/builder");
+    } catch {
+      setErr("NETWORK_ERROR");
+      setLoading(false);
+    }
+  }
 
   return (
-    <div style={{ padding: 40, fontFamily: "Arial" }}>
-      <h2>Login License</h2>
+    <main style={{ minHeight: "100vh", display: "grid", placeItems: "center", padding: 24 }}>
+      <div style={{ width: "100%", maxWidth: 420, border: "1px solid #333", borderRadius: 12, padding: 18 }}>
+        <h1 style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>Login License</h1>
+        <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 14 }}>
+          Device ID: <b>{maskedDevice || "..."}</b>
+        </div>
 
-      <input
-        value={license}
-        onChange={(e) => setLicense(e.target.value)}
-        placeholder="Masukkan license"
-        style={{ padding: 10, width: 320, marginBottom: 10 }}
-      />
+        <form onSubmit={onSubmit} style={{ display: "grid", gap: 10 }}>
+          <input
+            value={license}
+            onChange={(e) => setLicense(e.target.value)}
+            placeholder="WW-XXXX..."
+            style={{ padding: 12, borderRadius: 10, border: "1px solid #333", outline: "none" }}
+            autoCapitalize="characters"
+            autoCorrect="off"
+            spellCheck={false}
+            required
+          />
 
-      <button
-        onClick={() => validate(license)}
-        disabled={loading}
-        style={{ padding: "10px 20px" }}
-      >
-        {loading ? "Checking..." : "Login"}
-      </button>
+          <button
+            type="submit"
+            disabled={loading || !device}
+            style={{
+              padding: 12,
+              borderRadius: 10,
+              border: "1px solid #333",
+              background: loading ? "#222" : "#111",
+              cursor: loading ? "not-allowed" : "pointer",
+              fontWeight: 700,
+            }}
+          >
+            {loading ? "Checking..." : "Login"}
+          </button>
 
-      <p>{status}</p>
-    </div>
+          {err ? (
+            <div style={{ fontSize: 12, color: "#ff6b6b", marginTop: 4 }}>
+              Error: <b>{err}</b>
+              <div style={{ opacity: 0.85, marginTop: 4 }}>
+                Kalau <b>DEVICE_MISMATCH</b>, admin perlu reset device (hapus kolom <b>device_id</b> di sheet).
+              </div>
+            </div>
+          ) : null}
+        </form>
+      </div>
+    </main>
   );
 }
