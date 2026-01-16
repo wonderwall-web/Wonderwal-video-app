@@ -2,16 +2,51 @@ import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 
-type ValidateResponse = {
-  ok?: boolean;
-  code?: string;
-  message?: string;
-};
+type AnyObj = Record<string, any>;
 
 function getLimiterStore(): Map<string, number> {
   const g = globalThis as unknown as { __wwLimiter?: Map<string, number> };
   if (!g.__wwLimiter) g.__wwLimiter = new Map<string, number>();
   return g.__wwLimiter;
+}
+
+function extractCodeFromText(raw: string): string {
+  const t = (raw || "").toUpperCase();
+
+  // Common codes we care about
+  const codes = [
+    "OK",
+    "BOUND",
+    "DEVICE_MISMATCH",
+    "LICENSE_NOT_FOUND",
+    "LICENSE_INACTIVE",
+    "LICENSE_INVALID",
+    "INVALID_REQUEST",
+  ];
+
+  for (const c of codes) {
+    if (t.includes(c)) return c;
+  }
+
+  return "UNKNOWN";
+}
+
+function extractCodeFromJson(obj: AnyObj): string {
+  const candidates = [
+    obj?.code,
+    obj?.status,
+    obj?.result,
+    obj?.message,
+  ]
+    .filter(Boolean)
+    .map((x) => String(x).toUpperCase());
+
+  for (const s of candidates) {
+    const c = extractCodeFromText(s);
+    if (c !== "UNKNOWN") return c;
+  }
+
+  return "UNKNOWN";
 }
 
 async function validateLicense(licenseApiUrl: string, license: string, device: string) {
@@ -21,23 +56,25 @@ async function validateLicense(licenseApiUrl: string, license: string, device: s
 
   try {
     const res = await fetch(url, { method: "GET", signal: controller.signal, cache: "no-store" });
-    const text = await res.text();
+    const raw = await res.text();
 
-    let data: ValidateResponse | null = null;
+    let code = "UNKNOWN";
+    let parsed: AnyObj | null = null;
+
     try {
-      data = JSON.parse(text) as ValidateResponse;
+      parsed = JSON.parse(raw) as AnyObj;
+      code = extractCodeFromJson(parsed);
     } catch {
-      data = null;
+      code = extractCodeFromText(raw);
     }
 
-    const code = (data?.code || "").toUpperCase();
     const ok = code === "OK" || code === "BOUND";
 
     return {
       httpOk: res.ok,
       ok,
-      code: code || "UNKNOWN",
-      raw: text,
+      code,
+      raw,
     };
   } finally {
     clearTimeout(t);
@@ -53,9 +90,9 @@ export async function POST(req: Request) {
     );
   }
 
-  let body: any = null;
+  let body: AnyObj;
   try {
-    body = await req.json();
+    body = (await req.json()) as AnyObj;
   } catch {
     return NextResponse.json({ ok: false, error: "BAD_JSON" }, { status: 400 });
   }
@@ -71,6 +108,7 @@ export async function POST(req: Request) {
     );
   }
 
+  // Rate limit 1 request / 2 detik per (license+device)
   const store = getLimiterStore();
   const key = `${license}::${device}`;
   const now = Date.now();
@@ -79,24 +117,37 @@ export async function POST(req: Request) {
   if (now - last < 2000) {
     return NextResponse.json({ ok: false, error: "RATE_LIMIT" }, { status: 429 });
   }
-
   store.set(key, now);
 
   const v = await validateLicense(licenseApiUrl, license, device);
+
+  // Kalau Apps Script down / non-200
   if (!v.httpOk) {
     return NextResponse.json(
-      { ok: false, error: "LICENSE_API_DOWN", code: v.code, raw: v.raw },
+      { ok: false, error: "LICENSE_API_DOWN", code: v.code },
       { status: 502 }
     );
   }
 
-  if (!v.ok) {
+  // Kalau responnya aneh banget (UNKNOWN), kasih error yang jelas
+  if (v.code === "UNKNOWN") {
     return NextResponse.json(
-      { ok: false, error: v.code || "LICENSE_INVALID" },
-      { status: 403 }
+      {
+        ok: false,
+        error: "LICENSE_API_BAD_RESPONSE",
+        message: "Apps Script membalas 200 tapi formatnya tidak terbaca (bukan JSON/teks code).",
+        raw_preview: v.raw.slice(0, 180),
+      },
+      { status: 502 }
     );
   }
 
+  // Kalau license ditolak
+  if (!v.ok) {
+    return NextResponse.json({ ok: false, error: v.code }, { status: 403 });
+  }
+
+  // OK / BOUND
   return NextResponse.json({
     ok: true,
     output: `DUMMY_OK: ${prompt}`,
