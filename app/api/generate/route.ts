@@ -1,65 +1,105 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 
-const RATE_LIMIT_MS = 2000;
-const lastRequest = new Map<string, number>();
+export const runtime = "nodejs";
 
-const FALLBACK_LICENSE_API_URL =
-  "https://script.google.com/macros/s/AKfycbxVDINwsmkWY7gYCN_WCZjjkvST5A3vhoPO92jF04GR9jafXyqywCVTVHrn82uSp6YWcQ/exec";
+type ValidateResponse = {
+  ok?: boolean;
+  code?: string;
+  message?: string;
+};
 
-export async function POST(req: NextRequest) {
+function getLimiterStore(): Map<string, number> {
+  const g = globalThis as unknown as { __wwLimiter?: Map<string, number> };
+  if (!g.__wwLimiter) g.__wwLimiter = new Map<string, number>();
+  return g.__wwLimiter;
+}
+
+async function validateLicense(licenseApiUrl: string, license: string, device: string) {
+  const url = `${licenseApiUrl}?license=${encodeURIComponent(license)}&device=${encodeURIComponent(device)}`;
+  const controller = new AbortController();
+  const t = setTimeout(() => controller.abort(), 8000);
+
   try {
-    const body = await req.json().catch(() => ({}));
-    const { apiKey, license, device, prompt } = body || {};
-    if (!apiKey || !license || !device || !prompt) {
-      return NextResponse.json({ error: "MISSING_FIELD" }, { status: 400 });
+    const res = await fetch(url, { method: "GET", signal: controller.signal, cache: "no-store" });
+    const text = await res.text();
+
+    let data: ValidateResponse | null = null;
+    try {
+      data = JSON.parse(text) as ValidateResponse;
+    } catch {
+      data = null;
     }
 
-    const licenseApi = process.env.LICENSE_API_URL || process.env.LICENSE_API_URL || FALLBACK_LICENSE_API_URL;
+    const code = (data?.code || "").toUpperCase();
+    const ok = code === "OK" || code === "BOUND";
 
-    // rate limit
-    const now = Date.now();
-    const last = lastRequest.get(license) || 0;
-    if (now - last < RATE_LIMIT_MS) {
-      return NextResponse.json({ error: "RATE_LIMIT" }, { status: 429 });
-    }
-    lastRequest.set(license, now);
-
-    // validate license
-    const validateUrl =
-      licenseApi +
-      `?license=${encodeURIComponent(license)}&device=${encodeURIComponent(device)}`;
-
-    const vres = await fetch(validateUrl);
-    const vdata = await vres.json().catch(() => null);
-
-    if (!vdata?.ok) {
-      return NextResponse.json({ error: vdata?.error || "LICENSE_INVALID" }, { status: 401 });
-    }
-
-    // gemini
-    const model = "gemini-1.5-flash";
-    const geminiUrl =
-      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=` +
-      encodeURIComponent(apiKey);
-
-    const gres = await fetch(geminiUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
-    });
-
-    const gjson = await gres.json().catch(() => null);
-
-    if (!gres.ok) {
-      return NextResponse.json(
-        { error: "GEMINI_ERROR", detail: gjson?.error?.message || JSON.stringify(gjson)?.slice(0, 300) },
-        { status: 500 }
-      );
-    }
-
-    const output = gjson?.candidates?.[0]?.content?.parts?.[0]?.text || "No output";
-    return NextResponse.json({ ok: true, output });
-  } catch (err: any) {
-    return NextResponse.json({ error: "SERVER_ERROR", detail: err?.message || String(err) }, { status: 500 });
+    return {
+      httpOk: res.ok,
+      ok,
+      code: code || "UNKNOWN",
+      raw: text,
+    };
+  } finally {
+    clearTimeout(t);
   }
+}
+
+export async function POST(req: Request) {
+  const licenseApiUrl = process.env.LICENSE_API_URL;
+  if (!licenseApiUrl) {
+    return NextResponse.json(
+      { ok: false, error: "ENV_MISSING", message: "LICENSE_API_URL belum diset di Vercel." },
+      { status: 500 }
+    );
+  }
+
+  let body: any = null;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ ok: false, error: "BAD_JSON" }, { status: 400 });
+  }
+
+  const license = String(body?.license || "").trim();
+  const device = String(body?.device || "").trim();
+  const prompt = String(body?.prompt || "").trim();
+
+  if (!license || !device || !prompt) {
+    return NextResponse.json(
+      { ok: false, error: "MISSING_FIELDS", required: ["license", "device", "prompt"] },
+      { status: 400 }
+    );
+  }
+
+  const store = getLimiterStore();
+  const key = `${license}::${device}`;
+  const now = Date.now();
+  const last = store.get(key) ?? 0;
+
+  if (now - last < 2000) {
+    return NextResponse.json({ ok: false, error: "RATE_LIMIT" }, { status: 429 });
+  }
+
+  store.set(key, now);
+
+  const v = await validateLicense(licenseApiUrl, license, device);
+  if (!v.httpOk) {
+    return NextResponse.json(
+      { ok: false, error: "LICENSE_API_DOWN", code: v.code, raw: v.raw },
+      { status: 502 }
+    );
+  }
+
+  if (!v.ok) {
+    return NextResponse.json(
+      { ok: false, error: v.code || "LICENSE_INVALID" },
+      { status: 403 }
+    );
+  }
+
+  return NextResponse.json({
+    ok: true,
+    output: `DUMMY_OK: ${prompt}`,
+    license_status: v.code,
+  });
 }
