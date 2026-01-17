@@ -2,51 +2,17 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ==== theme comic kamu ==== */
-:root{
-  --comic-dark:#0b1020;
-  --comic-purple:#7c3aed;
-  --comic-pink:#f472b6;
-  --comic-yellow:#fde047;
-  --comic-cyan:#22d3ee;
-  --comic-red:#ef4444;
+:root {
+  color-scheme: dark;
 }
 
-html, body { height: 100%; }
-body{
-  margin:0;
-  background: var(--comic-dark);
-  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+html,
+body {
+  height: 100%;
 }
 
-.font-display{ font-family: ui-serif, Georgia, "Times New Roman", Times, serif; }
-
-.bg-comic-dark{ background: var(--comic-dark); }
-.bg-comic-purple{ background: var(--comic-purple); }
-.bg-comic-pink{ background: var(--comic-pink); }
-.bg-comic-yellow{ background: var(--comic-yellow); }
-.bg-comic-cyan{ background: var(--comic-cyan); }
-.bg-comic-red{ background: var(--comic-red); }
-
-.text-comic-purple{ color: var(--comic-purple); }
-.text-comic-pink{ color: var(--comic-pink); }
-.text-comic-yellow{ color: var(--comic-yellow); }
-.text-comic-cyan{ color: var(--comic-cyan); }
-.text-comic-red{ color: var(--comic-red); }
-
-.shadow-comic{ box-shadow: 6px 6px 0 #000; }
-.shadow-comic-lg{ box-shadow: 10px 10px 0 #000; }
-
-.tilt-left{ transform: rotate(-1.2deg); }
-.tilt-right{ transform: rotate(1.2deg); }
-
-.halftone{ position: relative; }
-.halftone::before{
-  content:"";
-  position:absolute;
-  inset:0;
-  pointer-events:none;
-  opacity:.10;
-  background-image: radial-gradient(#fff 1px, transparent 1px);
-  background-size: 10px 10px;
+body {
+  margin: 0;
+  background: #0b0f17;
+  color: #ffffff;
 }

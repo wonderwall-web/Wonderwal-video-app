@@ -1,13 +1,13 @@
 import "./globals.css";
 
 export const metadata = {
-  title: "Nusantara Diorama AI",
-  description: "Builder",
+  title: "Wonderwal",
+  description: "Wonderwal Builder",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="id">
+    <html lang="en">
       <body>{children}</body>
     </html>
   );
