@@ -43,9 +43,11 @@ export default function SettingsPage() {
       <h1 style={{ fontSize: 18, fontWeight: 800, marginBottom: 10 }}>Settings</h1>
 
       <section style={{ border: "1px solid #333", borderRadius: 12, padding: 16 }}>
-        <h2 style={{ fontSize: 14, fontWeight: 800, marginBottom: 8 }}>Gemini API Keys (max 5)</h2>
+        <h2 style={{ fontSize: 14, fontWeight: 800, marginBottom: 8 }}>
+          Gemini API Keys (max 5)
+        </h2>
         <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 12 }}>
-          Keys disimpan di browser (localStorage). Tidak dikirim kemana-mana sampai kamu pakai untuk generate.
+          Simpan API key di browser. Isi minimal 1, lalu kembali ke /builder.
         </div>
 
         <div style={{ display: "grid", gap: 10 }}>
@@ -61,7 +63,14 @@ export default function SettingsPage() {
               />
               <button
                 onClick={() => removeAt(i)}
-                style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid #333", background: "#111", cursor: "pointer" }}
+                style={{
+                  padding: "10px 12px",
+                  borderRadius: 10,
+                  border: "1px solid #333",
+                  background: "#111",
+                  cursor: "pointer",
+                  color: "white",
+                }}
               >
                 Remove
               </button>
@@ -73,13 +82,28 @@ export default function SettingsPage() {
           <button
             onClick={addSlot}
             disabled={keys.length >= 5}
-            style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid #333", background: "#111", cursor: "pointer" }}
+            style={{
+              padding: "10px 12px",
+              borderRadius: 10,
+              border: "1px solid #333",
+              background: "#111",
+              cursor: "pointer",
+              color: "white",
+            }}
           >
             Add Slot
           </button>
           <button
             onClick={onSave}
-            style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid #333", background: "#111", cursor: "pointer", fontWeight: 800 }}
+            style={{
+              padding: "10px 12px",
+              borderRadius: 10,
+              border: "1px solid #333",
+              background: "#111",
+              cursor: "pointer",
+              fontWeight: 800,
+              color: "white",
+            }}
           >
             Save
           </button>

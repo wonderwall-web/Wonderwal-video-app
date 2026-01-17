@@ -17,3 +17,9 @@ export function loadKeys(): ApiKeyItem[] {
 export function saveKeys(keys: ApiKeyItem[]) {
   localStorage.setItem(LS_KEYS, JSON.stringify(keys.slice(0, 5)));
 }
+
+export function getFirstApiKey(): string {
+  const keys = loadKeys();
+  const found = keys.find(k => (k.key || "").trim());
+  return (found?.key || "").trim();
+}
