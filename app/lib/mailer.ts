@@ -14,7 +14,7 @@ export async function sendLicenseEmail(to: string, license: string) {
   await transporter.sendMail({
     from: process.env.FROM_EMAIL,
     to,
-    subject: "Your YosoApps AI License",
+    subject: "Your Wonderwall AI License",
     html: `
       <h2>Wonderwall AI</h2>
       <p>Terima kasih sudah membeli.</p>
