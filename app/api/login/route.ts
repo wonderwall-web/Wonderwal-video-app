@@ -1,72 +1,68 @@
 import { NextResponse } from "next/server";
-import { getSessionCookieName, signSession } from "../../lib/auth";
 
 export const runtime = "nodejs";
 
-type AnyObj = Record<string, any>;
-
-async function validateToAppsScript(licenseApiUrl: string, license: string, device: string) {
-  const url = `${licenseApiUrl}?license=${encodeURIComponent(license)}&device=${encodeURIComponent(device)}`;
-  const res = await fetch(url, { method: "GET", cache: "no-store" });
-  const raw = await res.text();
-
-  let obj: AnyObj | null = null;
+function q(req: Request, k: string) {
   try {
-    obj = JSON.parse(raw) as AnyObj;
+    return (new URL(req.url).searchParams.get(k) || "").trim();
   } catch {
-    obj = null;
+    return "";
+  }
+}
+
+async function readParams(req: Request) {
+  let license = q(req, "license");
+  let device = q(req, "device");
+
+  if (!license || !device) {
+    try {
+      const body = await req.json();
+      if (!license) license = String(body?.license || "").trim();
+      if (!device) device = String(body?.device || "").trim();
+    } catch {}
   }
 
-  if (!res.ok) return { ok: false, code: "LICENSE_API_DOWN", raw };
+  return { license, device };
+}
 
-  if (obj && typeof obj.ok === "boolean") {
-    if (obj.ok === true) return { ok: true, code: String(obj.code || "OK").toUpperCase(), raw };
-    return { ok: false, code: String(obj.error || "LICENSE_INVALID").toUpperCase(), raw };
+export async function GET(req: Request) {
+  const { license, device } = await readParams(req);
+  if (!license || !device) return NextResponse.json({ ok: false, error: "MISSING_PARAMS" }, { status: 400 });
+
+  const base = (process.env.LICENSE_API_URL || "").trim();
+  if (!base) return NextResponse.json({ ok: false, error: "ENV_MISSING" }, { status: 500 });
+
+  const url = `${base}?license=${encodeURIComponent(license)}&device=${encodeURIComponent(device)}`;
+  const r = await fetch(url);
+  const data = await r.json().catch(() => ({} as any));
+
+  const ok = data?.ok === true && (data?.status === "OK" || data?.status === "BOUND" || data?.valid === true);
+
+  const res = NextResponse.json(data, { status: ok ? 200 : 401 });
+
+  if (ok) {
+    // session cookie sederhana untuk unlock middleware
+    res.cookies.set("ww_session", "ok", {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 30, // 30 hari
+    });
+
+    // simpan license juga (optional, untuk debug)
+    res.cookies.set("ww_license", license, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 30,
+    });
   }
 
-  return { ok: false, code: "LICENSE_API_BAD_RESPONSE", raw };
+  return res;
 }
 
 export async function POST(req: Request) {
-  const licenseApiUrl = process.env.LICENSE_API_URL;
-  const sessionSecret = process.env.SESSION_SECRET;
-
-  if (!licenseApiUrl) {
-    return NextResponse.json({ ok: false, error: "ENV_MISSING", message: "LICENSE_API_URL belum diset." }, { status: 500 });
-  }
-  if (!sessionSecret) {
-    return NextResponse.json({ ok: false, error: "ENV_MISSING", message: "SESSION_SECRET belum diset." }, { status: 500 });
-  }
-
-  let body: AnyObj;
-  try {
-    body = (await req.json()) as AnyObj;
-  } catch {
-    return NextResponse.json({ ok: false, error: "BAD_JSON" }, { status: 400 });
-  }
-
-  const license = String(body?.license || "").trim();
-  const device = String(body?.device || "").trim();
-
-  if (!license || !device) {
-    return NextResponse.json({ ok: false, error: "MISSING_FIELDS", required: ["license", "device"] }, { status: 400 });
-  }
-
-  const v = await validateToAppsScript(licenseApiUrl, license, device);
-  if (!v.ok) {
-    return NextResponse.json({ ok: false, error: v.code }, { status: 403 });
-  }
-
-  const token = signSession({ license, device, iat: Date.now() }, sessionSecret);
-
-  const res = NextResponse.json({ ok: true, code: v.code });
-  res.cookies.set(getSessionCookieName(), token, {
-    httpOnly: true,
-    secure: true,
-    sameSite: "lax",
-    path: "/",
-    maxAge: 60 * 60 * 24 * 365,
-  });
-
-  return res;
+  return GET(req);
 }

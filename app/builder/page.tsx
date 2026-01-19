@@ -1,6 +1,6 @@
-import dynamic from "next/dynamic";
+import AppClient from "./AppClient";
 
-const AppClient = dynamic(() => import("./AppClient"), { ssr: false });
+export const dynamic = "force-dynamic";
 
 export default function BuilderPage() {
   return <AppClient />;
